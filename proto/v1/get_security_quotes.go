@@ -1,100 +1,276 @@
 package v1
 
-//
-//// 请求包结构
-//type GetSecurityQuotesRequest struct {
-//	// struc不允许slice解析，只允许包含长度的array，该长度可根据hex字符串计算
-//	Unknown1 []byte `struc:"[12]byte"`
-//	// pytdx中使用struct.Pack进行反序列化
-//	// 其中<H等价于这里的struc:"uint16,little"
-//	// <I等价于struc:"uint32,little"
-//	Market   Market `struc:"uint16,little";json:"market"`
-//	Start int `struc:"uint16,little";json:"start"`
-//}
-//
-//// 请求包序列化输出
-//func (req *GetSecurityQuotesRequest) Marshal() ([]byte, error) {
-//	return proto.DefaultMarshal(req)
-//}
-//// 响应包结构
-//type getSecurityQuotesResponseRaw struct{
-//	Count int `struc:"uint16,little,sizeof=StocksRaw";json:"count"`
-//	StocksRaw []stockRaw `struc:"[29]byte, little";json:"stocks_raw"`
-//}
-//type stockRaw struct {
-//	Code string `struc:"[6]byte,little";json:"code"`
-//	VolUnit int `struc:"uint16,little";json:"vol_unit"`
-//	Name []byte `struc:"[8]byte,little";json:"name"`
-//	ReversedBytes1 []byte `struc:"[4]byte,little";json:"reversed_bytes_1"`
-//	DecimalPoint int `struc:"byte,little";json:"decimal_point"`
-//	PreCloseRaw int `struc:"uint32,little";json:"pre_close_raw"`
-//	ReversedBytes2 []byte `struc:"[4]byte,little";json:"reversed_bytes_2"`
-//}
-//func (resp *getSecurityQuotesResponseRaw) Stocks() ([]Stock, error) {
-//	var (
-//		stocks []Stock
-//	)
-//	// 后续处理
-//	for idx := range resp.StocksRaw{
-//		name, err := parse.DecodeGBK(resp.StocksRaw[idx].Name) // .rstrip("\x00")
-//		if err != nil {
-//			return nil, err
-//		}
-//		log.Println(resp.StocksRaw[idx].PreCloseRaw)
-//		stocks = append(stocks, Stock{
-//			Code:         resp.StocksRaw[idx].Code,
-//			VolUnit:      resp.StocksRaw[idx].VolUnit,
-//			DecimalPoint: resp.StocksRaw[idx].DecimalPoint,
-//			Name:         string(name),
-//			PreClose:     parse.GetVolume(resp.StocksRaw[idx].PreCloseRaw),
-//		})
-//	}
-//	return stocks, nil
-//}
-//func (resp *getSecurityQuotesResponseRaw) Unmarshal(data []byte) error {
-//	return proto.DefaultUnmarshal(data, &resp)
-//}
-//
-//// 响应包结构
-//type GetSecurityQuotesResponse struct{
-//	Count int `struc:"uint16,little,sizeof=Stocks";json:"count"`
-//	Stocks []Stock `struc:"[29]byte, little";json:"stocks"`
-//}
-//// 内部套用原始结构解析，外部为经过解析之后的响应信息
-//func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
-//	var raw getSecurityQuotesResponseRaw
-//	err := raw.Unmarshal(data)
-//	if err != nil {
-//		return err
-//	}
-//	stocks, err := raw.Stocks()
-//	if err != nil {
-//		return err
-//	}
-//	resp.Stocks = stocks
-//	return nil
-//}
-//
-//type GetSecurityQuotesRequestParams struct {
-//	Market Market
-//	SecurityCode int
-//}
-//
-//// todo: 检测market是否为合法值
-//func NewGetSecurityQuotesRequest(securities []GetSecurityQuotesRequestParams) (*GetSecurityQuotesRequest, error) {
-//	for securityIdx := range securities{
-//		log.Println(securities[securityIdx].Market)
-//	}
-//	request := &GetSecurityQuotesRequest{
-//		Unknown1: utils.HexString2Bytes("0c 01 18 64 01 01 06 00 06 00 50 04"),
-//		Market: market,
-//		Start: start,
-//	}
-//	return request, nil
-//}
-//
-//func NewGetSecurityQuotes(market Market, start int) (*GetSecurityQuotesRequest, *GetSecurityQuotesResponse, error) {
-//	var response GetSecurityQuotesResponse
-//	var request, err = NewGetSecurityQuotesRequest(market, start)
-//	return request, &response, err
-//}
+import (
+	"errors"
+
+	"github.com/cyclegen-community/tdx-go/proto"
+)
+
+// 请求包结构
+type GetSecurityQuotesRequestParams struct {
+	Market Market `struc:"uint8,little";json:"market"`
+	Code   string `struct:"[6]byte";json:"code"`
+}
+
+func (req *GetSecurityQuotesRequestParams) Marshal() ([]byte, error) {
+	return proto.DefaultMarshal(req)
+}
+
+type GetSecurityQuotesRequest struct {
+	H1         int `struc:"uint16,little";json:"h1"`
+	I2         int `struc:"uint32,little";json:"i2"`
+	H3         int `struc:"uint16,little";json:"h3"`
+	H4         int `struc:"uint16,little";json:"h4"`
+	I5         int `struc:"uint32,little";json:"i5"`
+	I6         int `struc:"uint32,little";json:"i6"`
+	H7         int `struc:"uint16,little";json:"h7"`
+	H8         int `struc:"uint16,little";json:"h8"`
+	securities []GetSecurityQuotesRequestParams
+}
+
+// 请求包序列化输出
+func (r *GetSecurityQuotesRequest) Marshal() ([]byte, error) {
+	RequestByte, err := proto.DefaultMarshal(r)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range r.securities {
+		paramByte, err := proto.DefaultMarshal(&p)
+		if err != nil {
+			return nil, err
+		}
+		RequestByte = append(RequestByte, paramByte...)
+	}
+	return RequestByte, nil
+}
+
+type Quote struct {
+	Market         Market  `json:"market"`
+	Code           string  `json:"code"`
+	Active1        int     `json:"active1"`
+	Price          float64 `json:"price"`
+	LastClose      float64 `json:"last_close"`
+	Open           float64 `json:"open"`
+	High           float64 `json:"high"`
+	Low            float64 `json:"low"`
+	Servertime     int     `json:"servertime"`
+	ReversedBytes0 int     `json:"reversed_bytes0"`
+	ReversedBytes1 int     `json:"reversed_bytes1"`
+	Vol            int     `json:"vol"`
+	CurVol         int     `json:"cur_vol"`
+	Amount         float64 `json:"amount"`
+	SVol           int     `json:"s_vol"`
+	BVol           int     `json:"b_vol"`
+	ReversedBytes2 int     `json:"reversed_bytes2"`
+	ReversedBytes3 int     `json:"reversed_bytes3"`
+	Bid1           float64 `json:"bid1"`
+	Ask1           float64 `json:"ask1"`
+	BidVol1        int     `json:"bid_vol1"`
+	AskVol1        int     `json:"ask_vol1"`
+	Bid2           float64 `json:"bid2"`
+	Ask2           float64 `json:"ask2"`
+	BidVol2        int     `json:"bid_vol2"`
+	AskVol2        int     `json:"ask_vol2"`
+	Bid3           float64 `json:"bid3"`
+	Ask3           float64 `json:"ask3"`
+	BidVol3        int     `json:"bid_vol3"`
+	AskVol3        int     `json:"ask_vol3"`
+	Bid4           float64 `json:"bid4"`
+	Ask4           float64 `json:"ask4"`
+	BidVol4        int     `json:"bid_vol4"`
+	AskVol4        int     `json:"ask_vol4"`
+	Bid5           float64 `json:"bid5"`
+	Ask5           float64 `json:"ask5"`
+	BidVol5        int     `json:"bid_vol5"`
+	AskVol5        int     `json:"ask_vol5"`
+	ReversedBytes4 []int   `json:"reversed_bytes4"`
+	ReversedBytes5 int     `json:"reversed_bytes5"`
+	ReversedBytes6 int     `json:"reversed_bytes6"`
+	ReversedBytes7 int     `json:"reversed_bytes7"`
+	ReversedBytes8 int     `json:"reversed_bytes8"`
+	ReversedBytes9 float64 `json:"reversed_bytes9"`
+	Active2        int     `json:"active2"`
+}
+
+func calPrice(base float64, diff float64) float64 {
+	return float64(base+diff) / 100
+}
+
+// 响应包结构
+type GetSecurityQuotesResponse struct {
+	Count  int
+	Quotes []Quote
+}
+
+// 内部套用原始结构解析，外部为经过解析之后的响应信息
+func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
+	// skip b1 cb
+	data = data[2:]
+
+	var err error
+	var values []interface{}
+
+	bp := new(BinaryPack)
+	data, values, err = bp.UnPack([]string{"H"}, data)
+	if err != nil {
+		return err
+	}
+	resp.Count = values[0].(int)
+
+	for i := 0; i < resp.Count; i++ {
+		data, values, err = bp.UnPack([]string{"B", "6s", "H"}, data)
+		if err != nil {
+			return err
+		}
+		market := Market(values[0].(int))
+		code := values[1].(string)
+		active1 := values[2].(int)
+
+		data1, price := bp.UnPackPrice(data)
+		data1, lastCloseDiff := bp.UnPackPrice(data1)
+		data1, openDiff := bp.UnPackPrice(data1)
+		data1, highDiff := bp.UnPackPrice(data1)
+		data1, lowDiff := bp.UnPackPrice(data1)
+		data1, reversedBytes0 := bp.UnPackPrice(data1)
+		data1, reversedBytes1 := bp.UnPackPrice(data1)
+		data1, vol := bp.UnPackPrice(data1)
+		data1, curVol := bp.UnPackPrice(data1)
+
+		data1, amount, err := bp.UnPackAmount(data1)
+		if err != nil {
+			return err
+		}
+
+		data1, sVol := bp.UnPackPrice(data1)
+		data1, bVol := bp.UnPackPrice(data1)
+		data1, reversedBytes2 := bp.UnPackPrice(data1)
+		data1, reversedBytes3 := bp.UnPackPrice(data1)
+
+		data1, bid1 := bp.UnPackPrice(data1)
+		data1, ask1 := bp.UnPackPrice(data1)
+		data1, bidVol1 := bp.UnPackPrice(data1)
+		data1, askVol1 := bp.UnPackPrice(data1)
+
+		data1, bid2 := bp.UnPackPrice(data1)
+		data1, ask2 := bp.UnPackPrice(data1)
+		data1, bidVol2 := bp.UnPackPrice(data1)
+		data1, askVol2 := bp.UnPackPrice(data1)
+
+		data1, bid3 := bp.UnPackPrice(data1)
+		data1, ask3 := bp.UnPackPrice(data1)
+		data1, bidVol3 := bp.UnPackPrice(data1)
+		data1, askVol3 := bp.UnPackPrice(data1)
+
+		data1, bid4 := bp.UnPackPrice(data1)
+		data1, ask4 := bp.UnPackPrice(data1)
+		data1, bidVol4 := bp.UnPackPrice(data1)
+		data1, askVol4 := bp.UnPackPrice(data1)
+
+		data1, bid5 := bp.UnPackPrice(data1)
+		data1, ask5 := bp.UnPackPrice(data1)
+		data1, bidVol5 := bp.UnPackPrice(data1)
+		data1, askVol5 := bp.UnPackPrice(data1)
+
+		data1, values, err = bp.UnPack([]string{"H"}, data1)
+		if err != nil {
+			return err
+		}
+		reversedBytes4 := values[0].(int)
+
+		data1, reversedBytes5 := bp.UnPackPrice(data1)
+		data1, reversedBytes6 := bp.UnPackPrice(data1)
+		data1, reversedBytes7 := bp.UnPackPrice(data1)
+		data1, reversedBytes8 := bp.UnPackPrice(data1)
+
+		data1, values, err = bp.UnPack([]string{"h", "H"}, data1)
+		if err != nil {
+			return err
+		}
+		reversedBytes9 := values[0].(int)
+		active2 := values[1].(int)
+		data = data1
+
+		quote := Quote{
+			Market:         market,
+			Code:           code,
+			Active1:        active1,
+			Price:          calPrice(price, 0),
+			LastClose:      calPrice(price, lastCloseDiff),
+			Open:           calPrice(price, openDiff),
+			High:           calPrice(price, highDiff),
+			Low:            calPrice(price, lowDiff),
+			Servertime:     int(reversedBytes0),
+			ReversedBytes0: int(reversedBytes0),
+			ReversedBytes1: int(reversedBytes1),
+			Vol:            int(vol),
+			CurVol:         int(curVol),
+			Amount:         amount,
+			SVol:           int(sVol),
+			BVol:           int(bVol),
+			ReversedBytes2: int(reversedBytes2),
+			ReversedBytes3: int(reversedBytes3),
+			Bid1:           calPrice(price, bid1),
+			Ask1:           calPrice(price, ask1),
+			BidVol1:        int(bidVol1),
+			AskVol1:        int(askVol1),
+			Bid2:           calPrice(price, bid2),
+			Ask2:           calPrice(price, ask2),
+			BidVol2:        int(bidVol2),
+			AskVol2:        int(askVol2),
+			Bid3:           calPrice(price, bid3),
+			Ask3:           calPrice(price, ask3),
+			BidVol3:        int(bidVol3),
+			AskVol3:        int(askVol3),
+			Bid4:           calPrice(price, bid4),
+			Ask4:           calPrice(price, ask4),
+			BidVol4:        int(bidVol4),
+			AskVol4:        int(askVol4),
+			Bid5:           calPrice(price, bid5),
+			Ask5:           calPrice(price, ask5),
+			BidVol5:        int(bidVol5),
+			AskVol5:        int(askVol5),
+			ReversedBytes4: []int{reversedBytes4},
+			ReversedBytes5: int(reversedBytes5),
+			ReversedBytes6: int(reversedBytes6),
+			ReversedBytes7: int(reversedBytes7),
+			ReversedBytes8: int(reversedBytes8),
+			ReversedBytes9: float64(reversedBytes9) / 100.0,
+			Active2:        active2,
+		}
+
+		resp.Quotes = append(resp.Quotes, quote)
+	}
+
+	// fmt.Printf("%+v\n", resp)
+
+	return nil
+}
+
+// todo: 检测market是否为合法值
+func NewGetSecurityQuotesRequest(securities []GetSecurityQuotesRequestParams) (*GetSecurityQuotesRequest, error) {
+	stockLen := len(securities)
+	if stockLen <= 0 {
+		return nil, errors.New("securities must not be empty")
+	}
+	pkgDataLen := stockLen*7 + 12
+
+	request := &GetSecurityQuotesRequest{
+		H1:         0x10c,
+		I2:         0x02006320,
+		H3:         pkgDataLen,
+		H4:         pkgDataLen,
+		I5:         0x5053e,
+		I6:         0,
+		H7:         0,
+		H8:         stockLen,
+		securities: securities,
+	}
+
+	return request, nil
+}
+
+func NewGetSecurityQuotes(securities []GetSecurityQuotesRequestParams) (*GetSecurityQuotesRequest, *GetSecurityQuotesResponse, error) {
+	var response GetSecurityQuotesResponse
+	var request, err = NewGetSecurityQuotesRequest(securities)
+	return request, &response, err
+}
