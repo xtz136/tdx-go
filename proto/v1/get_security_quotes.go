@@ -2,9 +2,42 @@ package v1
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/cyclegen-community/tdx-go/proto"
 )
+
+func calPrice(base float64, diff float64) float64 {
+	return float64(base+diff) / 100
+}
+
+func formatTime(timeStamp string) (string, error) {
+	timeStampLen := len(timeStamp)
+	time := timeStamp[:timeStampLen-6] + ":"
+	t1, err := strconv.Atoi(timeStamp[timeStampLen-6 : timeStampLen-4])
+	if err != nil {
+		return "", err
+	}
+
+	if t1 < 60 {
+		t2, err := strconv.Atoi(timeStamp[timeStampLen-4:])
+		if err != nil {
+			return "", err
+		}
+		time += timeStamp[timeStampLen-6:timeStampLen-4] + ":"
+		time += fmt.Sprintf("%6.3f", float64(t2)*60/10000.0)
+	} else {
+		t12, err := strconv.Atoi(timeStamp[timeStampLen-6:])
+		if err != nil {
+			return "", err
+		}
+		time += fmt.Sprintf("%2d:", t12*60/1000000)
+		time += fmt.Sprintf("%6.3f:", float64(t12*60%1000000)*60/1000000.0)
+	}
+
+	return time, nil
+}
 
 // 请求包结构
 type GetSecurityQuotesRequestParams struct {
@@ -53,7 +86,7 @@ type Quote struct {
 	Open           float64 `json:"open"`
 	High           float64 `json:"high"`
 	Low            float64 `json:"low"`
-	Servertime     int     `json:"servertime"`
+	Servertime     string  `json:"servertime"`
 	ReversedBytes0 int     `json:"reversed_bytes0"`
 	ReversedBytes1 int     `json:"reversed_bytes1"`
 	Vol            int     `json:"vol"`
@@ -90,10 +123,6 @@ type Quote struct {
 	ReversedBytes8 int     `json:"reversed_bytes8"`
 	ReversedBytes9 float64 `json:"reversed_bytes9"`
 	Active2        int     `json:"active2"`
-}
-
-func calPrice(base float64, diff float64) float64 {
-	return float64(base+diff) / 100
 }
 
 // 响应包结构
@@ -190,6 +219,11 @@ func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
 		active2 := values[1].(int)
 		data = data1
 
+		servertime, err := formatTime(fmt.Sprintf("%d", int(reversedBytes0)))
+		if err != nil {
+			return err
+		}
+
 		quote := Quote{
 			Market:         market,
 			Code:           code,
@@ -199,7 +233,7 @@ func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
 			Open:           calPrice(price, openDiff),
 			High:           calPrice(price, highDiff),
 			Low:            calPrice(price, lowDiff),
-			Servertime:     int(reversedBytes0),
+			Servertime:     servertime,
 			ReversedBytes0: int(reversedBytes0),
 			ReversedBytes1: int(reversedBytes1),
 			Vol:            int(vol),
