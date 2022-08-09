@@ -201,36 +201,36 @@ func (bp *BinaryPack) UnPackAmount(msg []byte) ([]byte, float64, error) {
 		tmpEax = dwEcx
 	}
 
-	db1Xmm6 := math.Pow(2.0, float64(tmpEax))
+	dblXmm6 := math.Pow(2.0, float64(tmpEax))
 	if dwEax < 0 {
-		db1Xmm6 = 1.0 / db1Xmm6
+		dblXmm6 = 1.0 / dblXmm6
 	}
 
-	var db1Xmm4 float64
+	var dblXmm4 float64
 	if hleax > 0x80 {
 		dwtmpeax := dwEdx + 1
-		tmpdb1Xmm3 := math.Pow(2.0, float64(dwtmpeax))
-		db1Xmm0 := math.Pow(2.0, float64(dwEdx)) * 128.0
-		db1Xmm0 += float64(hleax&0x7f) * tmpdb1Xmm3
-		db1Xmm4 = db1Xmm0
+		tmpdblXmm3 := math.Pow(2.0, float64(dwtmpeax))
+		dblXmm0 := math.Pow(2.0, float64(dwEdx)) * 128.0
+		dblXmm0 += float64(hleax&0x7f) * tmpdblXmm3
+		dblXmm4 = dblXmm0
 	} else {
-		db1Xmm0 := 0.0
+		dblXmm0 := 0.0
 		if dwEdx >= 0 {
-			db1Xmm0 = math.Pow(2.0, float64(dwEdx)) * float64(hleax)
+			dblXmm0 = math.Pow(2.0, float64(dwEdx)) * float64(hleax)
 		} else {
-			db1Xmm0 = (1 / math.Pow(2.0, float64(dwEdx))) * float64(hleax)
+			dblXmm0 = (1 / math.Pow(2.0, float64(dwEdx))) * float64(hleax)
 		}
-		db1Xmm4 = db1Xmm0
+		dblXmm4 = dblXmm0
 	}
 
-	db1Xmm3 := math.Pow(2.0, float64(dwEsi)) * float64(lheax)
-	db1Xmm1 := math.Pow(2.0, float64(dwEax)) * float64(lleax)
+	dblXmm3 := math.Pow(2.0, float64(dwEsi)) * float64(lheax)
+	dblXmm1 := math.Pow(2.0, float64(dwEax)) * float64(lleax)
 	if hleax&0x80 > 0 {
-		db1Xmm3 *= 2.0
-		db1Xmm1 *= 2.0
+		dblXmm3 *= 2.0
+		dblXmm1 *= 2.0
 	}
 
-	ret := db1Xmm6 + db1Xmm4 + db1Xmm3 + db1Xmm1
+	ret := dblXmm6 + dblXmm4 + dblXmm3 + dblXmm1
 	return msg, ret, nil
 
 }
