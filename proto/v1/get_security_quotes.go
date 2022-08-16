@@ -13,6 +13,10 @@ func calPrice(base float64, diff float64) float64 {
 }
 
 func formatTime(timeStamp string) (string, error) {
+	if len(timeStamp) < 6 {
+		return "", nil
+	}
+
 	time := timeStamp[:2] + ":"
 	t1, err := strconv.Atoi(timeStamp[2:4])
 	if err != nil {
@@ -20,14 +24,14 @@ func formatTime(timeStamp string) (string, error) {
 	}
 
 	if t1 < 60 {
-		t2, err := strconv.Atoi(timeStamp[4:])
+		t2, err := strconv.Atoi(timeStamp[4:6])
 		if err != nil {
 			return "", err
 		}
 		time += timeStamp[2:4] + ":"
 		time += fmt.Sprintf("%6.3f", float64(t2)*60/10000.0)
 	} else {
-		t12, err := strconv.Atoi(timeStamp[2:])
+		t12, err := strconv.Atoi(timeStamp[2:6])
 		if err != nil {
 			return "", err
 		}
@@ -218,11 +222,10 @@ func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
 		active2 := values[1].(int)
 		data = data1
 
-		servertime, err := formatTime(fmt.Sprintf("%d", int(reversedBytes0)))
+		servertime, err := formatTime(fmt.Sprintf("%d", int(reversedBytes0)-int(reversedBytes1)))
 		if err != nil {
 			return err
 		}
-		fmt.Println("servertime: ", servertime)
 
 		quote := Quote{
 			Market:         market,
@@ -275,7 +278,7 @@ func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
 		resp.Quotes = append(resp.Quotes, quote)
 	}
 
-	// fmt.Printf("%+v\n", resp)
+	fmt.Printf("%+v\n", resp)
 
 	return nil
 }
