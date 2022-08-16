@@ -13,22 +13,21 @@ func calPrice(base float64, diff float64) float64 {
 }
 
 func formatTime(timeStamp string) (string, error) {
-	timeStampLen := len(timeStamp)
-	time := timeStamp[:timeStampLen-6] + ":"
-	t1, err := strconv.Atoi(timeStamp[timeStampLen-6 : timeStampLen-4])
+	time := timeStamp[:2] + ":"
+	t1, err := strconv.Atoi(timeStamp[2:4])
 	if err != nil {
 		return "", err
 	}
 
 	if t1 < 60 {
-		t2, err := strconv.Atoi(timeStamp[timeStampLen-4:])
+		t2, err := strconv.Atoi(timeStamp[4:])
 		if err != nil {
 			return "", err
 		}
-		time += timeStamp[timeStampLen-6:timeStampLen-4] + ":"
+		time += timeStamp[2:4] + ":"
 		time += fmt.Sprintf("%6.3f", float64(t2)*60/10000.0)
 	} else {
-		t12, err := strconv.Atoi(timeStamp[timeStampLen-6:])
+		t12, err := strconv.Atoi(timeStamp[2:])
 		if err != nil {
 			return "", err
 		}
@@ -223,6 +222,7 @@ func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println("servertime: ", servertime)
 
 		quote := Quote{
 			Market:         market,
