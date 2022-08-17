@@ -17,27 +17,18 @@ func formatTime(timeStamp string) (string, error) {
 		return "", nil
 	}
 
+	if len(timeStamp) < 8 {
+		timeStamp = fmt.Sprintf("%08s", timeStamp)
+	}
+
 	time := timeStamp[:2] + ":"
-	t1, err := strconv.Atoi(timeStamp[2:4])
+
+	t2, err := strconv.Atoi(timeStamp[4:8])
 	if err != nil {
 		return "", err
 	}
-
-	if t1 < 60 {
-		t2, err := strconv.Atoi(timeStamp[4:6])
-		if err != nil {
-			return "", err
-		}
-		time += timeStamp[2:4] + ":"
-		time += fmt.Sprintf("%6.3f", float64(t2)*60/10000.0)
-	} else {
-		t12, err := strconv.Atoi(timeStamp[2:6])
-		if err != nil {
-			return "", err
-		}
-		time += fmt.Sprintf("%2d:", t12*60/1000000)
-		time += fmt.Sprintf("%6.3f:", float64(t12*60%1000000)*60/1000000.0)
-	}
+	time += timeStamp[2:4] + ":"
+	time += fmt.Sprintf("%6.3f", float64(t2)*60/10000.0)
 
 	return time, nil
 }
