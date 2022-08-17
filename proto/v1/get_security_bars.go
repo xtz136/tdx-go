@@ -1,10 +1,70 @@
 package v1
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/cyclegen-community/tdx-go/proto"
+	"github.com/lunixbochs/struc"
 )
+
+type dateTimeType struct {
+	year   int
+	month  int
+	day    int
+	hour   int
+	minute int
+}
+
+func (c *dateTimeType) Pack(p []byte, opt *struc.Options) (int, error) {
+	return 0, nil
+}
+
+func (c *dateTimeType) Unpack(r io.Reader, length int, opt *struc.Options) error {
+	category := 3
+
+	if category < 4 || category == 7 || category == 8 {
+		data := make([]byte, 4)
+		r.Read(data)
+		zipday := binary.LittleEndian.Uint16(data[0:2])
+		tminutes := binary.LittleEndian.Uint16(data[2:4])
+
+		c.year = int((zipday >> 11) + 2004)
+		c.month = int((zipday % 2048) / 100)
+		c.day = int((zipday % 2048) % 100)
+		c.hour = int(tminutes / 60)
+		c.minute = int(tminutes % 60)
+		return nil
+	} else {
+		data := make([]byte, 4)
+		r.Read(data)
+		// buf := bytes.NewBuffer(data)
+		// var x int32
+		// binary.Read(buf, binary.LittleEndian, &x)
+
+		zipday := binary.LittleEndian.Uint32(data)
+
+		c.year = int(zipday / 10000)
+		c.month = int((zipday % 10000) / 100)
+		c.day = int(zipday % 100)
+		c.hour = 15
+		c.minute = 0
+		return nil
+	}
+}
+func (c *dateTimeType) Size(opt *struc.Options) int {
+	return -1
+}
+func (c *dateTimeType) String() string {
+	return c.getValue()
+}
+func (c *dateTimeType) getParts() (int, int, int, int, int) {
+	return c.year, c.month, c.day, c.hour, c.minute
+}
+func (c *dateTimeType) getValue() string {
+	return fmt.Sprintf("%d-%02d-%02d %02d:%02d", c.year, c.month, c.day, c.hour, c.minute)
+}
 
 // 请求包结构
 type GetSecurityBarsRequestParams struct {
@@ -41,7 +101,22 @@ func (r *GetSecurityBarsRequest) Marshal() ([]byte, error) {
 	return proto.DefaultMarshal(r)
 }
 
-type Kline struct {
+type getSecurityBarsResponseItemRaw struct {
+	Datetime  dateTimeType `struc:"CustomType,little";json:"datetime"`
+	OpenDiff  PriceType    `struc:"CustomType,little";json:"open"`
+	CloseDiff PriceType    `struc:"CustomType,little";json:"close"`
+	HighDiff  PriceType    `struc:"CustomType,little";json:"close"`
+	LowDiff   PriceType    `struc:"CustomType,little";json:"close"`
+	Vol       VolumeType   `struc:"CustomType,little";json:"close"`
+	DBVol     VolumeType   `struc:"CustomType,little";json:"close"`
+}
+
+type GetSecurityBarsResponseRaw struct {
+	Count uint `struc:"uint16,little,sizeof=Lines";json:"count"`
+	Lines []getSecurityBarsResponseItemRaw
+}
+
+type GetSecurityBarsRequestItem struct {
 	Open     float64 `json:"open"`
 	Close    float64 `json:"close"`
 	High     float64 `json:"high"`
@@ -58,7 +133,8 @@ type Kline struct {
 
 // 响应包结构
 type GetSecurityBarsResponse struct {
-	klines []Kline
+	Count  uint                         `json:"count"`
+	KLines []GetSecurityBarsRequestItem `json:"datas"`
 
 	// 存放这个变量，解析返回值需要用到
 	category KLINE_TYPE
@@ -66,126 +142,44 @@ type GetSecurityBarsResponse struct {
 
 // 内部套用原始结构解析，外部为经过解析之后的响应信息
 func (resp *GetSecurityBarsResponse) Unmarshal(data []byte) error {
-	var err error
-	var values []interface{}
-	bp := new(BinaryPack)
-	data, values, err = bp.UnPack([]string{"H"}, data)
-	if err != nil {
+	var respRaw GetSecurityBarsResponseRaw
+	if err := proto.DefaultUnmarshal(data, &respRaw); err != nil {
 		return err
 	}
+	resp.Count = respRaw.Count
+	preDiffBase := 0
+	for _, item := range respRaw.Lines {
+		openDiff := item.OpenDiff.getValue()
+		closeDiff := item.CloseDiff.getValue()
+		highDiff := item.HighDiff.getValue()
+		lowDiff := item.LowDiff.getValue()
 
-	preDiffBase := float64(0)
-	count := values[0].(int)
-	for i := 0; i < count; i++ {
-		dataTemp, year, month, day, hour, minute := getDatetime(bp, int(resp.category), data)
-		dataTemp, priceOpenDiff := bp.UnPackPrice(dataTemp)
-		dataTemp, priceCloseDiff := bp.UnPackPrice(dataTemp)
-		dataTemp, priceHighDiff := bp.UnPackPrice(dataTemp)
-		dataTemp, priceLowDiff := bp.UnPackPrice(dataTemp)
+		open := calPrice1000(openDiff, preDiffBase)
+		openDiff += preDiffBase
+		close := calPrice1000(openDiff, closeDiff)
+		high := calPrice1000(openDiff, highDiff)
+		low := calPrice1000(openDiff, lowDiff)
 
-		dataTemp, vol, err := bp.UnPackAmount(dataTemp)
-		if err != nil {
-			return err
-		}
+		year, month, day, hour, minue := item.Datetime.getParts()
 
-		dataTemp, dbVol, err := bp.UnPackAmount(dataTemp)
-		if err != nil {
-			return err
-		}
-
-		open := calPrice1000(priceOpenDiff, preDiffBase)
-		priceOpenDiff += preDiffBase
-		close := calPrice1000(priceOpenDiff, priceCloseDiff)
-		high := calPrice1000(priceOpenDiff, priceHighDiff)
-		low := calPrice1000(priceOpenDiff, priceLowDiff)
-
-		kline := Kline{
+		resp.KLines = append(resp.KLines, GetSecurityBarsRequestItem{
 			Open:     open,
 			Close:    close,
 			High:     high,
 			Low:      low,
-			Vol:      vol,
-			Amount:   dbVol,
+			Vol:      item.Vol.getValue(),
+			Amount:   item.DBVol.getValue(),
 			Year:     year,
 			Month:    month,
 			Day:      day,
 			Hour:     hour,
-			Minute:   minute,
-			Datetime: fmt.Sprintf("%d-%02d-%02d %02d:%02d", year, month, day, hour, minute),
-		}
-		resp.klines = append(resp.klines, kline)
+			Minute:   minue,
+			Datetime: item.Datetime.getValue(),
+		})
 
-		preDiffBase = priceOpenDiff + priceCloseDiff
-		data = dataTemp
+		preDiffBase = openDiff + closeDiff
 	}
-
-	fmt.Printf("%+v\n", resp)
-
 	return nil
-}
-
-// func getPrice(b []byte, pos *int) int {
-// 	/*
-// 		    0x7f与常量做与运算实质是保留常量（转换为二进制形式）的后7位数，既取值区间为[0,127]
-// 		    0x3f与常量做与运算实质是保留常量（转换为二进制形式）的后6位数，既取值区间为[0,63]
-
-// 			0x80 1000 0000
-// 			0x7f 0111 1111
-// 			0x40  100 0000
-// 			0x3f  011 1111
-// 	*/
-// 	posByte := 6
-// 	bData := b[*pos]
-// 	data := int(bData & 0x3f)
-// 	bSign := false
-// 	if (bData & 0x40) > 0 {
-// 		bSign = true
-// 	}
-
-// 	if (bData & 0x80) > 0 {
-// 		for {
-// 			*pos += 1
-// 			bData = b[*pos]
-// 			data += (int(bData&0x7f) << posByte)
-
-// 			posByte += 7
-
-// 			if (bData & 0x80) <= 0 {
-// 				break
-// 			}
-// 		}
-// 	}
-// 	*pos++
-
-// 	if bSign {
-// 		data = -data
-// 	}
-// 	return data
-// }
-
-func getDatetime(bp *BinaryPack, category int, msg []byte) (restMsg []byte, year int, month int, day int, hour int, minute int) {
-	hour = 15
-	if category < 4 || category == 7 || category == 8 {
-		msg, values, _ := bp.UnPack([]string{"H", "H"}, msg)
-		zipday := values[0].(int)
-		tminutes := values[1].(int)
-
-		year = int((zipday >> 11) + 2004)
-		month = int((zipday % 2048) / 100)
-		day = int((zipday % 2048) % 100)
-		hour = int(tminutes / 60)
-		minute = int(tminutes % 60)
-		return msg, year, month, day, hour, minute
-
-	} else {
-		msg, values, _ := bp.UnPack([]string{"I"}, msg)
-		zipday := values[0].(int)
-
-		year = int(zipday / 10000)
-		month = int((zipday % 10000) / 100)
-		day = int(zipday % 100)
-		return msg, year, month, day, 15, 0
-	}
 }
 
 // todo: 检测market是否为合法值
@@ -250,6 +244,6 @@ func NewGetSecurityBars(market Market, code string, category KLINE_TYPE, start i
 	return request, &response, err
 }
 
-func calPrice1000(base float64, diff float64) float64 {
+func calPrice1000(base int, diff int) float64 {
 	return float64(base+diff) / 1000
 }
