@@ -2,13 +2,14 @@ package core
 
 import (
 	"errors"
-	"github.com/cyclegen-community/tdx-go/proto"
-	"github.com/cyclegen-community/tdx-go/utils"
 	"log"
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cyclegen-community/tdx-go/proto"
+	"github.com/cyclegen-community/tdx-go/utils"
 )
 
 type Client struct {
