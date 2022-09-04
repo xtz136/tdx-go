@@ -2,8 +2,9 @@ package proto
 
 import (
 	"bytes"
-	"github.com/lunixbochs/struc"
 	"log"
+
+	"github.com/lunixbochs/struc"
 )
 
 type Factory func() (Marshaler, Unmarshaler, error)

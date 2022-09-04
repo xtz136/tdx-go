@@ -71,7 +71,30 @@ func (r *GetSecurityQuotesRequest) Marshal() ([]byte, error) {
 	return RequestByte, nil
 }
 
-type Quote struct {
+func NewGetSecurityQuotesRequest(securities []GetSecurityQuotesRequestParams) (*GetSecurityQuotesRequest, error) {
+	stockLen := len(securities)
+	if stockLen <= 0 {
+		return nil, errors.New("securities must not be empty")
+	}
+	pkgDataLen := stockLen*7 + 12
+
+	request := &GetSecurityQuotesRequest{
+		H1:         0x10c,
+		I2:         0x02006320,
+		H3:         pkgDataLen,
+		H4:         pkgDataLen,
+		I5:         0x5053e,
+		I6:         0,
+		H7:         0,
+		H8:         stockLen,
+		securities: securities,
+	}
+
+	return request, nil
+}
+
+// 响应包结构
+type SecurityQuote struct {
 	Market         Market  `json:"market"`
 	Code           string  `json:"code"`
 	Active1        int     `json:"active1"`
@@ -119,11 +142,12 @@ type Quote struct {
 	Active2        int     `json:"active2"`
 }
 
-// 响应包结构
 type GetSecurityQuotesResponse struct {
-	Count  int
-	Quotes []Quote
+	Count          int
+	SecurityQuotes []SecurityQuote
 }
+
+// 响应体原始结构
 
 // 内部套用原始结构解析，外部为经过解析之后的响应信息
 func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
@@ -218,7 +242,7 @@ func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
 			return err
 		}
 
-		quote := Quote{
+		quote := SecurityQuote{
 			Market:         market,
 			Code:           code,
 			Active1:        active1,
@@ -266,35 +290,12 @@ func (resp *GetSecurityQuotesResponse) Unmarshal(data []byte) error {
 			Active2:        active2,
 		}
 
-		resp.Quotes = append(resp.Quotes, quote)
+		resp.SecurityQuotes = append(resp.SecurityQuotes, quote)
 	}
 
-	fmt.Printf("%+v\n", resp)
+	// fmt.Printf("%+v\n", resp)
 
 	return nil
-}
-
-// todo: 检测market是否为合法值
-func NewGetSecurityQuotesRequest(securities []GetSecurityQuotesRequestParams) (*GetSecurityQuotesRequest, error) {
-	stockLen := len(securities)
-	if stockLen <= 0 {
-		return nil, errors.New("securities must not be empty")
-	}
-	pkgDataLen := stockLen*7 + 12
-
-	request := &GetSecurityQuotesRequest{
-		H1:         0x10c,
-		I2:         0x02006320,
-		H3:         pkgDataLen,
-		H4:         pkgDataLen,
-		I5:         0x5053e,
-		I6:         0,
-		H7:         0,
-		H8:         stockLen,
-		securities: securities,
-	}
-
-	return request, nil
 }
 
 func NewGetSecurityQuotes(securities []GetSecurityQuotesRequestParams) (*GetSecurityQuotesRequest, *GetSecurityQuotesResponse, error) {
