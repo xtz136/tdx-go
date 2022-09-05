@@ -35,12 +35,12 @@ func formatTime(timeStamp string) (string, error) {
 }
 
 // 请求包结构
-type SecurityQuotesRequestParams struct {
+type GetSecurityQuotesRequestParams struct {
 	Market Market `struc:"uint8,little"`
 	Code   string `struct:"[6]byte"`
 }
 
-func (req *SecurityQuotesRequestParams) Marshal() ([]byte, error) {
+func (req *GetSecurityQuotesRequestParams) Marshal() ([]byte, error) {
 	return proto.DefaultMarshal(req)
 }
 
@@ -53,7 +53,7 @@ type SecurityQuotesRequest struct {
 	I6     int `struc:"uint32,little"`
 	H7     int `struc:"uint16,little"`
 	H8     int `struc:"uint16,little"`
-	params []SecurityQuotesRequestParams
+	params []GetSecurityQuotesRequestParams
 }
 
 // 请求包序列化输出
@@ -72,7 +72,7 @@ func (r *SecurityQuotesRequest) Marshal() ([]byte, error) {
 	return RequestByte, nil
 }
 
-func NewGetSecurityQuotesRequest(params []SecurityQuotesRequestParams) (*SecurityQuotesRequest, error) {
+func NewGetSecurityQuotesRequest(params []GetSecurityQuotesRequestParams) (*SecurityQuotesRequest, error) {
 	stockLen := len(params)
 	if stockLen <= 0 {
 		return nil, errors.New("securities must not be empty")
@@ -278,7 +278,7 @@ func (resp *SecurityQuotesResponse) Unmarshal(data []byte) error {
 	return nil
 }
 
-func NewGetSecurityQuotes(params []SecurityQuotesRequestParams) (*SecurityQuotesRequest, *SecurityQuotesResponse, error) {
+func NewGetSecurityQuotes(params []GetSecurityQuotesRequestParams) (*SecurityQuotesRequest, *SecurityQuotesResponse, error) {
 	var response SecurityQuotesResponse
 	var request, err = NewGetSecurityQuotesRequest(params)
 	return request, &response, err
