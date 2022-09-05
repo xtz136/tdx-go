@@ -41,7 +41,7 @@ func (c *dateTimeType) String() string {
 }
 func (c *dateTimeType) getValue() (int, int, int, int, int, error) {
 	category := c.category
-	if category == 0 {
+	if category < 0 {
 		return 0, 0, 0, 0, 0, errors.New("please call getValue method after call setCategory method")
 	}
 	if category < 4 || category == 7 || category == 8 {
@@ -67,20 +67,20 @@ func (c *dateTimeType) getValue() (int, int, int, int, int, error) {
 
 // 请求包结构
 type GetSecurityBarsRequest struct {
-	H1       int        `struc:"uint16,little";json:"h1"`
-	I2       int        `struc:"uint32,little";json:"i2"`
-	H3       int        `struc:"uint16,little";json:"h3"`
-	H4       int        `struc:"uint16,little";json:"h4"`
-	H5       int        `struc:"uint16,little";json:"h5"`
-	Market   Market     `struc:"uint16,little";json:"market"`
-	Code     string     `struc:"[6]byte,little";json:"code"`
-	Category KLINE_TYPE `struc:"uint16,little";json:"category"`
-	H9       int        `struc:"uint16,little";json:"h9"`
-	Start    int        `struc:"uint16,little";json:"start"`
-	Count    int        `struc:"uint16,little";json:"count"`
-	I12      int        `struc:"uint32,little";json:"i12"`
-	I13      int        `struc:"uint32,little";json:"i13"`
-	H14      int        `struc:"uint16,little";json:"h14"`
+	H1       int        `struc:"uint16,little"`
+	I2       int        `struc:"uint32,little"`
+	H3       int        `struc:"uint16,little"`
+	H4       int        `struc:"uint16,little"`
+	H5       int        `struc:"uint16,little"`
+	Market   Market     `struc:"uint16,little"`
+	Code     string     `struc:"[6]byte,little"`
+	Category KLINE_TYPE `struc:"uint16,little"`
+	H9       int        `struc:"uint16,little"`
+	Start    int        `struc:"uint16,little"`
+	Count    int        `struc:"uint16,little"`
+	I12      int        `struc:"uint32,little"`
+	I13      int        `struc:"uint32,little"`
+	H14      int        `struc:"uint16,little"`
 }
 
 // 请求包序列化输出
@@ -89,23 +89,23 @@ func (r *GetSecurityBarsRequest) Marshal() ([]byte, error) {
 }
 
 // 解析返回值
-type getSecurityBarsResponseItemRaw struct {
-	Datetime  dateTimeType `struc:"CustomType,little";json:"datetime"`
-	OpenDiff  PriceType    `struc:"CustomType,little";json:"open"`
-	CloseDiff PriceType    `struc:"CustomType,little";json:"close"`
-	HighDiff  PriceType    `struc:"CustomType,little";json:"close"`
-	LowDiff   PriceType    `struc:"CustomType,little";json:"close"`
-	Vol       int          `struc:"uint32,little";json:"close"`
-	DBVol     int          `struc:"uint32,little";json:"close"`
+type SecurityBarsResponseItemRaw struct {
+	Datetime  dateTimeType `struc:"CustomType,little"`
+	OpenDiff  PriceType    `struc:"CustomType,little"`
+	CloseDiff PriceType    `struc:"CustomType,little"`
+	HighDiff  PriceType    `struc:"CustomType,little"`
+	LowDiff   PriceType    `struc:"CustomType,little"`
+	Vol       int32        `struc:"int32,little"`
+	DBVol     int32        `struc:"int32,little"`
 }
 
-type GetSecurityBarsResponseRaw struct {
-	Count uint `struc:"uint16,little,sizeof=Lines";json:"count"`
-	Lines []getSecurityBarsResponseItemRaw
+type SecurityBarsResponseRaw struct {
+	Count uint `struc:"uint16,little,sizeof=Lines"`
+	Lines []SecurityBarsResponseItemRaw
 }
 
 // 响应包结构
-type GetSecurityBarsRequestItem struct {
+type SecurityBarsRespItem struct {
 	Open     float64 `json:"open"`
 	Close    float64 `json:"close"`
 	High     float64 `json:"high"`
@@ -120,17 +120,17 @@ type GetSecurityBarsRequestItem struct {
 	Datetime string  `json:"datetime"`
 }
 
-type GetSecurityBarsResponse struct {
-	Count  uint                         `json:"count"`
-	KLines []GetSecurityBarsRequestItem `json:"datas"`
+type SecurityBarsResponse struct {
+	Count  uint                   `json:"count"`
+	KLines []SecurityBarsRespItem `json:"datas"`
 
 	// 存放这个变量，解析返回值需要用到
 	category KLINE_TYPE
 }
 
 // 内部套用原始结构解析，外部为经过解析之后的响应信息
-func (resp *GetSecurityBarsResponse) Unmarshal(data []byte) error {
-	var respRaw GetSecurityBarsResponseRaw
+func (resp *SecurityBarsResponse) Unmarshal(data []byte) error {
+	var respRaw SecurityBarsResponseRaw
 	if err := proto.DefaultUnmarshal(data, &respRaw); err != nil {
 		return err
 	}
@@ -154,13 +154,13 @@ func (resp *GetSecurityBarsResponse) Unmarshal(data []byte) error {
 			return err
 		}
 
-		resp.KLines = append(resp.KLines, GetSecurityBarsRequestItem{
+		resp.KLines = append(resp.KLines, SecurityBarsRespItem{
 			Open:     open,
 			Close:    close,
 			High:     high,
 			Low:      low,
-			Vol:      ParseVolume(item.Vol),
-			Amount:   ParseVolume(item.DBVol),
+			Vol:      ParseVolume(int(item.Vol)),
+			Amount:   ParseVolume(int(item.DBVol)),
 			Year:     year,
 			Month:    month,
 			Day:      day,
@@ -171,10 +171,10 @@ func (resp *GetSecurityBarsResponse) Unmarshal(data []byte) error {
 
 		preDiffBase = openDiff + closeDiff
 	}
+	// fmt.Printf("%+v\n", resp)
 	return nil
 }
 
-// todo: 检测market是否为合法值
 func NewGetSecurityBarsRequest(market Market, code string, category KLINE_TYPE, start int, count int) (*GetSecurityBarsRequest, error) {
 	request := &GetSecurityBarsRequest{
 		H1:       0x10c,
@@ -229,8 +229,8 @@ const (
 	KLINE_TYPE_YEARLY               = 11
 )
 
-func NewGetSecurityBars(market Market, code string, category KLINE_TYPE, start int, count int) (*GetSecurityBarsRequest, *GetSecurityBarsResponse, error) {
-	var response GetSecurityBarsResponse
+func NewGetSecurityBars(market Market, code string, category KLINE_TYPE, start int, count int) (*GetSecurityBarsRequest, *SecurityBarsResponse, error) {
+	var response SecurityBarsResponse
 	var request, err = NewGetSecurityBarsRequest(market, code, category, start, count)
 	response.category = category
 	return request, &response, err
