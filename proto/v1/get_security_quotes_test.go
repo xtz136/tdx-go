@@ -1,9 +1,11 @@
 package v1
 
 import (
+	"fmt"
 	"io/ioutil"
-	"reflect"
 	"testing"
+
+	"github.com/go-test/deep"
 )
 
 func TestGetSecurityQuotesResponse_Unmarshal(t *testing.T) {
@@ -39,7 +41,7 @@ func TestGetSecurityQuotesResponse_Unmarshal(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			resp := &GetSecurityQuotesResponse{}
+			resp := &SecurityQuotesResponse{}
 			if err := resp.Unmarshal(tt.args.data); (err != nil) != tt.wantErr {
 				t.Errorf("GetSecurityQuotes error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -47,8 +49,8 @@ func TestGetSecurityQuotesResponse_Unmarshal(t *testing.T) {
 				t.Errorf("GetSecurityQuotes count error = %v, wantErr %v", resp.Count, tt.wantData.Count)
 			}
 			for i, value := range resp.SecurityQuotes {
-				if !reflect.DeepEqual(value, tt.wantData.SecurityQuotes[i]) {
-					t.Errorf("GetSecurityQuotes quotes[%v] error = %v, wantErr %v", i, value, tt.wantData.SecurityQuotes[i])
+				if diff := deep.Equal(value, tt.wantData.SecurityQuotes[i]); diff != nil {
+					t.Error(fmt.Sprintf("deep SecurityQuotes[%v]", i), diff)
 				}
 			}
 		})
