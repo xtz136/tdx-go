@@ -150,9 +150,9 @@ type SecurityQuotesResponse struct {
 
 // 响应体原始结构
 type SecurityQuoteRaw struct {
-	Market         Market    `struc:"uint8,little"`
+	Market         Market    `struc:"int8,little"`
 	Code           string    `struc:"[6]byte,little"`
-	Active1        int       `struc:"uint16,little"`
+	Active1        int16     `struc:"int16,little"`
 	Price          PriceType `struc:"CustomType,little"`
 	LastCloseDiff  PriceType `struc:"CustomType,little"`
 	OpenDiff       PriceType `struc:"CustomType,little"`
@@ -162,7 +162,7 @@ type SecurityQuoteRaw struct {
 	ReversedBytes1 PriceType `struc:"CustomType,little"`
 	Vol            PriceType `struc:"CustomType,little"`
 	CurVol         PriceType `struc:"CustomType,little"`
-	Amount         int       `struc:"uint32,little"`
+	Amount         int32     `struc:"int32,little"`
 	SVol           PriceType `struc:"CustomType,little"`
 	BVol           PriceType `struc:"CustomType,little"`
 	ReversedBytes2 PriceType `struc:"CustomType,little"`
@@ -192,8 +192,8 @@ type SecurityQuoteRaw struct {
 	ReversedBytes6 PriceType `struc:"CustomType,little"`
 	ReversedBytes7 PriceType `struc:"CustomType,little"`
 	ReversedBytes8 PriceType `struc:"CustomType,little"`
-	ReversedBytes9 int       `struc:"uint16,little"`
-	Active2        int       `struc:"uint16,little"`
+	ReversedBytes9 int16     `struc:"int16,little"`
+	Active2        int16     `struc:"int16,little"`
 }
 
 type SecurityQuoteResponseRaw struct {
@@ -224,7 +224,7 @@ func (resp *SecurityQuotesResponse) Unmarshal(data []byte) error {
 		quote := SecurityQuote{
 			Market:         itemR.Market,
 			Code:           itemR.Code,
-			Active1:        itemR.Active1,
+			Active1:        int(itemR.Active1),
 			Price:          calPrice(price, 0),
 			LastClose:      calPrice(price, itemR.LastCloseDiff.getValue()),
 			Open:           calPrice(price, itemR.OpenDiff.getValue()),
@@ -235,7 +235,7 @@ func (resp *SecurityQuotesResponse) Unmarshal(data []byte) error {
 			ReversedBytes1: itemR.ReversedBytes1.getValue(),
 			Vol:            itemR.Vol.getValue(),
 			CurVol:         itemR.CurVol.getValue(),
-			Amount:         ParseVolume(itemR.Amount),
+			Amount:         ParseVolume(int(itemR.Amount)),
 			SVol:           itemR.SVol.getValue(),
 			BVol:           itemR.BVol.getValue(),
 			ReversedBytes2: itemR.ReversedBytes2.getValue(),
@@ -266,8 +266,9 @@ func (resp *SecurityQuotesResponse) Unmarshal(data []byte) error {
 			ReversedBytes7: itemR.ReversedBytes7.getValue(),
 			ReversedBytes8: itemR.ReversedBytes8.getValue(),
 			ReversedBytes9: float64(itemR.ReversedBytes9) / 100.0,
-			Active2:        itemR.Active2,
+			Active2:        int(itemR.Active2),
 		}
+		fmt.Println("values is ", itemR.ReversedBytes9, itemR.Active2)
 
 		resp.SecurityQuotes = append(resp.SecurityQuotes, quote)
 	}
