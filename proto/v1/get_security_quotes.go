@@ -17,6 +17,7 @@ func formatTime(timeStamp string) (string, error) {
 		return "", nil
 	}
 
+	// 0-8点的时候，前面少了一个0
 	if len(timeStamp) < 8 {
 		timeStamp = fmt.Sprintf("%08s", timeStamp)
 	}
