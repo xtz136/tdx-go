@@ -268,7 +268,6 @@ func (resp *SecurityQuotesResponse) Unmarshal(data []byte) error {
 			ReversedBytes9: float64(itemR.ReversedBytes9) / 100.0,
 			Active2:        int(itemR.Active2),
 		}
-		fmt.Println("values is ", itemR.ReversedBytes9, itemR.Active2)
 
 		resp.SecurityQuotes = append(resp.SecurityQuotes, quote)
 	}
