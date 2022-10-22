@@ -1,22 +1,23 @@
 package main
 
 import (
-	"github.com/cyclegen-community/tdx-go/config"
+	"log"
+
 	"github.com/cyclegen-community/tdx-go/core"
 	"github.com/cyclegen-community/tdx-go/proto"
-	"github.com/cyclegen-community/tdx-go/proto/v1"
-	"log"
+	v1 "github.com/cyclegen-community/tdx-go/proto/v1"
 )
 
 func init() {
 	log.SetFlags(log.Lshortfile | log.Ldate)
 }
 func main() {
-	quotesSrv := config.GetBestStockQuotesServer()
+	// quotesSrv := config.GetBestStockQuotesServer()
 	//quotesSrvAddr := "106.120.74.86:7711" // quotesSrv.Addr()
-	log.Println("正在连接到最优行情服务器: ", quotesSrv.Addr())
-	T(quotesSrv.IP, quotesSrv.Port)
-	//T("106.120.74.86", 7709)
+	// log.Println("正在连接到最优行情服务器: ", quotesSrv.Addr())
+	// T(quotesSrv.IP, quotesSrv.Port)
+	// T("106.120.74.86", 7709)
+	T("119.147.212.81", 7709)
 }
 func T(ip string, port int) {
 	cli := core.NewClient(ip, port)
@@ -25,34 +26,35 @@ func T(ip string, port int) {
 	testProto(cli, func() (req proto.Marshaler, resp proto.Unmarshaler, err error) {
 		req, resp, err = v1.NewSetupCmd1()
 		return
-	})
+	}, true)
 	// CMD信令 2
 	testProto(cli, func() (req proto.Marshaler, resp proto.Unmarshaler, err error) {
 		req, resp, err = v1.NewSetupCmd2()
 		return
-	})
+	}, true)
 	// CMD信令 3
 	testProto(cli, func() (req proto.Marshaler, resp proto.Unmarshaler, err error) {
 		req, resp, err = v1.NewSetupCmd3()
 		return
-	})
+	}, true)
 	// 查询股票数量
-	testProto(cli, func() (req proto.Marshaler, resp proto.Unmarshaler, err error) {
-		req, resp, err = v1.NewGetSecurityCount(v1.MarketShangHai)
-		return
-	})
+	// testProto(cli, func() (req proto.Marshaler, resp proto.Unmarshaler, err error) {
+	// 	req, resp, err = v1.NewGetSecurityCount(v1.MarketShangHai)
+	// 	return
+	// })
+
+	// testProto(cli, func() (req proto.Marshaler, resp proto.Unmarshaler, err error) {
+	// 	req, resp, err = v1.NewGetSecurityList(v1.MarketShangHai, 255)
+	// 	return
+	// }, false)
 
 	testProto(cli, func() (req proto.Marshaler, resp proto.Unmarshaler, err error) {
-		req, resp, err = v1.NewGetSecurityList(v1.MarketShangHai, 255)
+		req, resp, err = v1.NewGetTransactionData(v1.MarketShenZhen, "000001", 0, 2)
 		return
-	})
-	//testProto(cli, func() (req proto.Marshaler, resp proto.Unmarshaler, err error) {
-	//	req, resp, err = v1.NewGetSecurityQuotes()
-	//	return
-	//})
+	}, false)
 }
 
-func testProto(cli *core.Client, factory proto.Factory) {
+func testProto(cli *core.Client, factory proto.Factory, quiet bool) {
 	req, resp, err := factory()
 	if err != nil {
 		log.Fatal(err)
@@ -61,5 +63,8 @@ func testProto(cli *core.Client, factory proto.Factory) {
 	if err != nil {
 		log.Println(err)
 	}
-	log.Println(resp)
+
+	if !quiet {
+		log.Println(resp)
+	}
 }

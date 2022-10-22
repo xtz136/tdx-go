@@ -15,7 +15,7 @@ const (
 // 请求包结构
 type GetSecurityCountRequest struct {
 	Unknown1 []byte `struc:"[12]byte"`
-	Market   Market `struc:"uint16,little";json:"market"`
+	Market   Market `struc:"uint16,little"`
 	Unknown2 []byte `struc:"[4]byte"`
 }
 
